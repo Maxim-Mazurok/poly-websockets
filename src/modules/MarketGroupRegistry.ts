@@ -1,31 +1,11 @@
-import { Mutex } from 'async-mutex';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { WebSocketGroup, WebSocketStatus } from '../types/WebSocketSubscriptions';
 import { OrderBookCache } from './OrderBookCache';
+import { BaseGroupRegistry } from './BaseGroupRegistry';
 import { logger } from '../logger';
 
-/*
- * Global group store and mutex, intentionally **not** exported anymore to prevent
- * accidental external mutation.  All access should go through the helper methods
- * on GroupRegistry instead. 
- */
-const wsGroups: WebSocketGroup[] = [];
-const wsGroupsMutex = new Mutex();
-
-export class GroupRegistry {
-
-    /** 
-     * Atomic mutate helper.
-     * 
-     * @param fn - The function to run atomically.
-     * @returns The result of the function.
-     */
-    public async mutate<T>(fn: (groups: WebSocketGroup[]) => T | Promise<T>): Promise<T> {
-        const release = await wsGroupsMutex.acquire();
-        try { return await fn(wsGroups); }
-        finally { release(); }
-    }
+export class MarketGroupRegistry extends BaseGroupRegistry<WebSocketGroup> {
 
     /** 
      * Read-only copy of the registry.
@@ -33,7 +13,7 @@ export class GroupRegistry {
      * Only to be used in test suite.
      */
     public snapshot(): WebSocketGroup[] {
-        return wsGroups.map(group => ({
+        return this.groups.map(group => ({
             ...group,
             assetIds: new Set(group.assetIds),
         }));
@@ -45,7 +25,7 @@ export class GroupRegistry {
      * Returns the groupId if found, otherwise null.
      */
     public findGroupWithCapacity(newAssetLen: number, maxPerWS: number): string | null {
-        for (const group of wsGroups) {
+        for (const group of this.groups) {
             if (group.assetIds.size === 0) continue;
             if (group.assetIds.size + newAssetLen <= maxPerWS) return group.groupId;
         }
@@ -59,8 +39,8 @@ export class GroupRegistry {
      */
     public getGroupIndicesForAsset(assetId: string): number[] {
         const indices: number[] = [];
-        for (let i = 0; i < wsGroups.length; i++) {
-            if (wsGroups[i]?.assetIds.has(assetId)) indices.push(i);
+        for (let i = 0; i < this.groups.length; i++) {
+            if (this.groups[i]?.assetIds.has(assetId)) indices.push(i);
         }
         return indices;
     }
@@ -69,7 +49,7 @@ export class GroupRegistry {
      * Check if any group contains the asset.
      */
     public hasAsset(assetId: string): boolean {
-        return wsGroups.some(group => group.assetIds.has(assetId));
+        return this.groups.some(group => group.assetIds.has(assetId));
     }
 
     /**
@@ -78,23 +58,7 @@ export class GroupRegistry {
      * Returns the group if found, otherwise undefined.
      */
     public findGroupById(groupId: string): WebSocketGroup | undefined {
-        return wsGroups.find(g => g.groupId === groupId);
-    }
-
-    /**
-     * Atomically remove **all** groups from the registry and return them so the
-     * caller can perform any asynchronous cleanup (closing sockets, etc.)
-     * outside the lock. 
-     * 
-     * Returns the removed groups.
-     */
-    public async clearAllGroups(): Promise<WebSocketGroup[]> {
-        let removed: WebSocketGroup[] = [];
-        await this.mutate(groups => {
-            removed = [...groups];
-            groups.length = 0;
-        });
-        return removed;
+        return this.groups.find(g => g.groupId === groupId);
     }
 
     /**

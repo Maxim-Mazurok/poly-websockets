@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { GroupRegistry } from '../src/modules/GroupRegistry';
+import { MarketGroupRegistry } from '../src/modules/MarketGroupRegistry';
 import { OrderBookCache } from '../src/modules/OrderBookCache';
 import { WebSocketGroup, WebSocketStatus } from '../src/types/WebSocketSubscriptions';
 import WebSocket from 'ws';
@@ -19,12 +19,12 @@ const makeGroupWithAssets = (id: string, assetIds: string[]): WebSocketGroup => 
     status: WebSocketStatus.ALIVE,
 });
 
-describe('GroupRegistry', () => {
-    let registry: GroupRegistry;
+describe('MarketGroupRegistry', () => {
+    let registry: MarketGroupRegistry;
     let mockBookCache: OrderBookCache;
 
     beforeEach(async () => {
-        registry = new GroupRegistry();
+        registry = new MarketGroupRegistry();
         await registry.clearAllGroups(); // ensure a clean slate for each test
         mockBookCache = new OrderBookCache();
         vi.clearAllMocks();

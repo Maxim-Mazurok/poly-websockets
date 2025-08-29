@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { WSSubscriptionManager, WebSocketHandlers } from '../src/WSSubscriptionManager';
-import { GroupRegistry } from '../src/modules/GroupRegistry';
+import { MarketWSSubscriptionManager, WebSocketHandlers } from '../src/MarketWSSubscriptionManager';
+import { MarketGroupRegistry } from '../src/modules/MarketGroupRegistry';
 import { OrderBookCache } from '../src/modules/OrderBookCache';
-import { GroupSocket } from '../src/modules/GroupSocket';
+import { MarketGroupSocket } from '../src/modules/MarketGroupSocket';
 import Bottleneck from 'bottleneck';
 import {
     BookEvent,
@@ -15,18 +15,18 @@ import {
 import { WebSocketGroup, WebSocketStatus } from '../src/types/WebSocketSubscriptions';
 
 // Mock all dependencies
-vi.mock('../src/modules/GroupRegistry');
+vi.mock('../src/modules/MarketGroupRegistry');
 vi.mock('../src/modules/OrderBookCache');
-vi.mock('../src/modules/GroupSocket');
+vi.mock('../src/modules/MarketGroupSocket');
 vi.mock('bottleneck');
 
-const MockedGroupRegistry = vi.mocked(GroupRegistry);
+const MockedMarketGroupRegistry = vi.mocked(MarketGroupRegistry);
 const MockedOrderBookCache = vi.mocked(OrderBookCache);
-const MockedGroupSocket = vi.mocked(GroupSocket);
+const MockedMarketGroupSocket = vi.mocked(MarketGroupSocket);
 const MockedBottleneck = vi.mocked(Bottleneck);
 
-describe('WSSubscriptionManager', () => {
-    let manager: WSSubscriptionManager;
+describe('MarketWSSubscriptionManager', () => {
+    let manager: MarketWSSubscriptionManager;
     let mockHandlers: WebSocketHandlers;
     let mockGroupRegistry: any;
     let mockBookCache: any;
@@ -86,7 +86,7 @@ describe('WSSubscriptionManager', () => {
             disconnectGroup: vi.fn()
         } as any;
 
-        MockedGroupRegistry.mockImplementation(() => mockGroupRegistry);
+        MockedMarketGroupRegistry.mockImplementation(() => mockGroupRegistry);
 
         // Setup OrderBookCache mock
         mockBookCache = {
@@ -108,9 +108,9 @@ describe('WSSubscriptionManager', () => {
             connect: vi.fn().mockResolvedValue(undefined),
         } as any;
 
-        MockedGroupSocket.mockImplementation(() => mockGroupSocket);
+        MockedMarketGroupSocket.mockImplementation(() => mockGroupSocket);
 
-        manager = new WSSubscriptionManager(mockHandlers);
+        manager = new MarketWSSubscriptionManager(mockHandlers);
     });
 
     afterEach(() => {
@@ -119,7 +119,7 @@ describe('WSSubscriptionManager', () => {
 
     describe('constructor', () => {
         it('should initialize with correct dependencies', () => {
-            expect(MockedGroupRegistry).toHaveBeenCalledTimes(1);
+            expect(MockedMarketGroupRegistry).toHaveBeenCalledTimes(1);
             expect(MockedOrderBookCache).toHaveBeenCalledTimes(1);
             expect(MockedBottleneck).toHaveBeenCalledWith({
                 reservoir: 5,
@@ -131,7 +131,7 @@ describe('WSSubscriptionManager', () => {
 
         it('should use custom bottleneck if provided in options', () => {
             const customBottleneck = new Bottleneck();
-            new WSSubscriptionManager(mockHandlers, { burstLimiter: customBottleneck });
+            new MarketWSSubscriptionManager(mockHandlers, { burstLimiter: customBottleneck });
 
             // Should not create a new bottleneck when custom one is provided
             // 1 for the constructor, 1 during the connect call
@@ -154,7 +154,7 @@ describe('WSSubscriptionManager', () => {
             await manager.addSubscriptions(assetIds);
 
             expect(mockGroupRegistry.addAssets).toHaveBeenCalledWith(assetIds, Number.MAX_SAFE_INTEGER);
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 mockBottleneck,
                 mockBookCache,
@@ -175,7 +175,7 @@ describe('WSSubscriptionManager', () => {
 
             await manager.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledTimes(2);
+            expect(MockedMarketGroupSocket).toHaveBeenCalledTimes(2);
             expect(mockGroupSocket.connect).toHaveBeenCalledTimes(2);
         });
 
@@ -291,7 +291,7 @@ describe('WSSubscriptionManager', () => {
                     });
 
                 // Create a manager with handlers that we can access
-                const testManager = new WSSubscriptionManager(mockHandlers);
+                const testManager = new MarketWSSubscriptionManager(mockHandlers);
                 
                 // Access the private method through the handlers
                 await (testManager as any).handlers.onBook(events);
@@ -307,7 +307,7 @@ describe('WSSubscriptionManager', () => {
 
                 mockGroupRegistry.getGroupIndicesForAsset.mockReturnValue([]); // No subscriptions
 
-                const testManager = new WSSubscriptionManager(mockHandlers);
+                const testManager = new MarketWSSubscriptionManager(mockHandlers);
                 await (testManager as any).handlers.onBook(events);
 
                 expect(mockHandlers.onBook).toHaveBeenCalledWith([]);
@@ -351,7 +351,7 @@ describe('WSSubscriptionManager', () => {
 
             mockGroupRegistry.getGroupIndicesForAsset.mockReturnValue([0]);
 
-            const testManager = new WSSubscriptionManager(mockHandlers);
+            const testManager = new MarketWSSubscriptionManager(mockHandlers);
 
             await (testManager as any).handlers.onBook([bookEvent]);
             await (testManager as any).handlers.onPriceChange([priceChangeEvent]);
@@ -385,7 +385,7 @@ describe('WSSubscriptionManager', () => {
                 expect(mockGroupRegistry.getGroupsToReconnectAndCleanup).toHaveBeenCalled();
             });
 
-            expect(MockedGroupSocket).toHaveBeenCalledTimes(2);
+            expect(MockedMarketGroupSocket).toHaveBeenCalledTimes(2);
             expect(mockGroupSocket.connect).toHaveBeenCalledTimes(2);
         });
 
@@ -425,7 +425,7 @@ describe('WSSubscriptionManager', () => {
 
     describe('handler delegation', () => {
         it('should delegate onWSClose to user handlers', async () => {
-            const testManager = new WSSubscriptionManager(mockHandlers);
+            const testManager = new MarketWSSubscriptionManager(mockHandlers);
             
             await (testManager as any).handlers.onWSClose('group1', ['asset1']);
 
@@ -433,7 +433,7 @@ describe('WSSubscriptionManager', () => {
         });
 
         it('should delegate onWSOpen to user handlers', async () => {
-            const testManager = new WSSubscriptionManager(mockHandlers);
+            const testManager = new MarketWSSubscriptionManager(mockHandlers);
             
             await (testManager as any).handlers.onWSOpen('group1', ['asset1']);
 
@@ -442,7 +442,7 @@ describe('WSSubscriptionManager', () => {
 
         it('should delegate onError to user handlers', async () => {
             const error = new Error('Test error');
-            const testManager = new WSSubscriptionManager(mockHandlers);
+            const testManager = new MarketWSSubscriptionManager(mockHandlers);
             
             await (testManager as any).handlers.onError(error);
 
@@ -502,8 +502,19 @@ describe('WSSubscriptionManager', () => {
     });
 
     describe('initialDump option', () => {
+        let managerWithDefaults: MarketWSSubscriptionManager;
+        let managerWithInitialDump: MarketWSSubscriptionManager;
+        let managerWithoutInitialDump: MarketWSSubscriptionManager;
+        let managerWithUndefined: MarketWSSubscriptionManager;
+
+        beforeEach(() => {
+            managerWithDefaults = new MarketWSSubscriptionManager(mockHandlers);
+            managerWithInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: true });
+            managerWithoutInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: false });
+            managerWithUndefined = new MarketWSSubscriptionManager(mockHandlers, { initialDump: undefined });
+        });
+
         it('should default to true when no options provided', async () => {
-            const managerWithDefaults = new WSSubscriptionManager(mockHandlers);
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -512,7 +523,7 @@ describe('WSSubscriptionManager', () => {
 
             await managerWithDefaults.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -522,7 +533,6 @@ describe('WSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=true when explicitly set', async () => {
-            const managerWithInitialDump = new WSSubscriptionManager(mockHandlers, { initialDump: true });
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -531,7 +541,7 @@ describe('WSSubscriptionManager', () => {
 
             await managerWithInitialDump.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -541,7 +551,6 @@ describe('WSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=false when explicitly set', async () => {
-            const managerWithoutInitialDump = new WSSubscriptionManager(mockHandlers, { initialDump: false });
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -550,7 +559,7 @@ describe('WSSubscriptionManager', () => {
 
             await managerWithoutInitialDump.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -560,7 +569,6 @@ describe('WSSubscriptionManager', () => {
         });
 
         it('should handle undefined initialDump option correctly', async () => {
-            const managerWithUndefined = new WSSubscriptionManager(mockHandlers, { initialDump: undefined });
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -569,7 +577,7 @@ describe('WSSubscriptionManager', () => {
 
             await managerWithUndefined.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),

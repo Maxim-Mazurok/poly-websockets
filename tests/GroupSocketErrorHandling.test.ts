@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GroupSocket } from '../src/modules/GroupSocket';
+import { MarketGroupSocket } from '../src/modules/MarketGroupSocket';
 import { UserGroupSocket } from '../src/modules/UserGroupSocket';
 import { WebSocketGroup, UserWebSocketGroup, WebSocketStatus } from '../src/types/WebSocketSubscriptions';
 import { WebSocketHandlers, UserWebSocketHandlers } from '../src/types/PolymarketWebSocket';
@@ -40,7 +40,7 @@ describe('WebSocket Error Handling on Open', () => {
         };
     });
 
-    describe('GroupSocket', () => {
+    describe('MarketGroupSocket', () => {
         it('should handle WebSocket send error in handleOpen and mark group as DEAD', async () => {
             const group: WebSocketGroup = {
                 groupId: 'test-group',
@@ -49,7 +49,7 @@ describe('WebSocket Error Handling on Open', () => {
                 status: WebSocketStatus.PENDING
             };
 
-            const groupSocket = new GroupSocket(group, mockLimiter, mockBookCache, mockHandlers);
+            const groupSocket = new MarketGroupSocket(group, mockLimiter, mockBookCache, mockHandlers);
 
             // Mock WebSocket that throws on send
             const mockWS = {
@@ -90,7 +90,7 @@ describe('WebSocket Error Handling on Open', () => {
                 status: WebSocketStatus.PENDING
             };
 
-            const groupSocket = new GroupSocket(group, mockLimiter, mockBookCache, mockHandlers);
+            const groupSocket = new MarketGroupSocket(group, mockLimiter, mockBookCache, mockHandlers);
 
             // Mock WebSocket that succeeds on send
             const mockWS = {

@@ -1,5 +1,5 @@
 import {
-  WSSubscriptionManager as PolymarketStream,
+  MarketWSSubscriptionManager as PolymarketStream,
   WebSocketHandlers,
   PolymarketPriceUpdateEvent,
   PriceChangeEvent,

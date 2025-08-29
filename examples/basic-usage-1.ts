@@ -1,6 +1,6 @@
 import util from 'util';
 import {
-    WSSubscriptionManager as PolymarketStream,
+    MarketWSSubscriptionManager as PolymarketStream,
     PolymarketPriceUpdateEvent,
   } from '@nevuamarkets/poly-websockets';
   
