@@ -1,4 +1,3 @@
-import ms from 'ms';
 import _ from 'lodash';
 import Bottleneck from 'bottleneck';
 import {
@@ -7,42 +6,36 @@ import {
     TradeEvent,
     PolymarketUserWSEvent
 } from './types/PolymarketWebSocket';
-import { UserSubscriptionManagerOptions, ApiCredentials } from './types/WebSocketSubscriptions';
+import { UserSubscriptionManagerOptions, ApiCredentials, UserWebSocketGroup } from './types/WebSocketSubscriptions';
 
 import { UserGroupRegistry } from './modules/UserGroupRegistry';
 import { UserGroupSocket } from './modules/UserGroupSocket';
+import { BaseSubscriptionManager } from './modules/BaseSubscriptionManager';
 
 import { logger } from './logger';
 
-// Keeping a burst limit under 10/s to avoid rate limiting
-// See https://docs.polymarket.com/quickstart/introduction/rate-limits#api-rate-limits
-const BURST_LIMIT_PER_SECOND = 5;
-
-const DEFAULT_RECONNECT_AND_CLEANUP_INTERVAL_MS = ms('10s');
-const DEFAULT_MAX_MARKETS_PER_WS = 100;
-
-export class UserWSSubscriptionManager {
-    private handlers: UserWebSocketHandlers;
-    private burstLimiter: Bottleneck;
-    private groupRegistry: UserGroupRegistry;
-    private reconnectAndCleanupIntervalMs: number;
-    private maxMarketsPerWS: number;
+export class UserWSSubscriptionManager extends BaseSubscriptionManager<
+    UserWebSocketHandlers,
+    UserWebSocketGroup,
+    UserGroupRegistry,
+    UserGroupSocket,
+    UserSubscriptionManagerOptions,
+    PolymarketUserWSEvent
+> {
     private options: UserSubscriptionManagerOptions;
 
     constructor(userHandlers: UserWebSocketHandlers, options: UserSubscriptionManagerOptions) {
+        super(userHandlers, options);
         this.options = options;
-        this.groupRegistry = new UserGroupRegistry();
-        this.burstLimiter = options?.burstLimiter || new Bottleneck({
-            reservoir: BURST_LIMIT_PER_SECOND,
-            reservoirRefreshAmount: BURST_LIMIT_PER_SECOND,
-            reservoirRefreshInterval: ms('1s'),
-            maxConcurrent: BURST_LIMIT_PER_SECOND
-        });
+    }
 
-        this.reconnectAndCleanupIntervalMs = options?.reconnectAndCleanupIntervalMs || DEFAULT_RECONNECT_AND_CLEANUP_INTERVAL_MS;
-        this.maxMarketsPerWS = options?.maxMarketsPerWS || DEFAULT_MAX_MARKETS_PER_WS;
+    // Implementation of abstract methods from BaseSubscriptionManager
+    protected createGroupRegistry(): UserGroupRegistry {
+        return new UserGroupRegistry();
+    }
 
-        this.handlers = {
+    protected setupHandlers(userHandlers: UserWebSocketHandlers): UserWebSocketHandlers {
+        return {
             onOrder: async (events: OrderEvent[]) => {
                 await this.actOnSubscribedEvents(events, userHandlers.onOrder);
             },
@@ -53,12 +46,72 @@ export class UserWSSubscriptionManager {
             onWSOpen: userHandlers.onWSOpen,
             onError: userHandlers.onError
         };
+    }
 
-        this.burstLimiter.on('error', (err: Error) => {
-            this.handlers.onError?.(err);
-        });
+    protected async clearAllGroups(): Promise<UserWebSocketGroup[]> {
+        return await this.groupRegistry.clearAllGroups();
+    }
 
-        setInterval(this.reconnectAndCleanupGroups.bind(this), this.reconnectAndCleanupIntervalMs);
+    protected async disconnectGroup(group: UserWebSocketGroup): Promise<void> {
+        try {
+            if (group.wsClient) {
+                group.wsClient.close();
+            }
+        } catch (error) {
+            await this.handlers.onError?.(new Error(`Error closing WebSocket for group ${group.groupId}: ${error instanceof Error ? error.message : String(error)}`));
+        }
+    }
+
+    protected async performAdditionalCleanup(): Promise<void> {
+        // User WebSocket manager doesn't have additional cleanup like the order book cache
+    }
+
+    protected async getGroupsToReconnectAndCleanup(): Promise<string[]> {
+        return await this.groupRegistry.getGroupsToReconnectAndCleanup();
+    }
+
+    protected findGroupById(groupId: string): UserWebSocketGroup | undefined {
+        return this.groupRegistry.findGroupById(groupId);
+    }
+
+    protected createGroupSocket(group: UserWebSocketGroup, limiter: Bottleneck, handlers: UserWebSocketHandlers): UserGroupSocket {
+        return new UserGroupSocket(group, limiter, handlers);
+    }
+
+    protected async connectGroupSocket(groupSocket: UserGroupSocket): Promise<void> {
+        await groupSocket.connect();
+    }
+
+    protected async filterSubscribedEvents<T extends PolymarketUserWSEvent>(events: T[]): Promise<T[]> {
+        // Check if any group is configured to subscribe to all events
+        const hasSubscribeToAll = this.groupRegistry.hasSubscribeToAll();
+        
+        if (hasSubscribeToAll) {
+            // If subscribing to all, pass through all events
+            return events;
+        } else {
+            // Otherwise, filter by subscribed markets
+            return events.filter(event => {
+                const marketId = event.market || '';
+                return this.groupRegistry.hasMarket(marketId);
+            });
+        }
+    }
+
+    protected async handleError(error: Error): Promise<void> {
+        await this.handlers.onError?.(error);
+    }
+
+    protected getBurstLimiter(options: UserSubscriptionManagerOptions): Bottleneck | undefined {
+        return options?.burstLimiter;
+    }
+
+    protected getReconnectAndCleanupIntervalMs(options: UserSubscriptionManagerOptions): number | undefined {
+        return options?.reconnectAndCleanupIntervalMs;
+    }
+
+    protected getMaxMarketsPerWS(options: UserSubscriptionManagerOptions): number | undefined {
+        return options?.maxMarketsPerWS;
     }
 
     /**
@@ -70,16 +123,7 @@ export class UserWSSubscriptionManager {
      * 2. Close all WebSocket connections
      */
     public async clearState() {
-        const removedGroups = await this.groupRegistry.clearAllGroups();
-        for (const group of removedGroups) {
-            try {
-                if (group.wsClient) {
-                    group.wsClient.close();
-                }
-            } catch (error) {
-                await this.handlers.onError?.(new Error(`Error closing WebSocket for group ${group.groupId}: ${error instanceof Error ? error.message : String(error)}`));
-            }
-        }
+        await super.clearState();
     }
 
     /* 
@@ -89,27 +133,8 @@ export class UserWSSubscriptionManager {
         The user handlers will be called **ONLY** for markets that are actively subscribed to by any groups,
         or if any group is configured to subscribe to all events.
     */
-    private async actOnSubscribedEvents<T extends PolymarketUserWSEvent>(events: T[], action?: (events: T[]) => Promise<void>) {
-        if (!action) return;
-
-        // Check if any group is configured to subscribe to all events
-        const hasSubscribeToAll = this.groupRegistry.hasSubscribeToAll();
-        
-        let subscribedEvents: T[];
-        if (hasSubscribeToAll) {
-            // If subscribing to all, pass through all events
-            subscribedEvents = events;
-        } else {
-            // Otherwise, filter by subscribed markets
-            subscribedEvents = events.filter(event => {
-                const marketId = event.market || '';
-                return this.groupRegistry.hasMarket(marketId);
-            });
-        }
-
-        if (subscribedEvents.length > 0) {
-            await action(subscribedEvents);
-        }
+    protected async actOnSubscribedEvents<T extends PolymarketUserWSEvent>(events: T[], action?: (events: T[]) => Promise<void>) {
+        await super.actOnSubscribedEvents(events, action);
     }
 
     /*  
@@ -150,7 +175,7 @@ export class UserWSSubscriptionManager {
         - Tries to reconnect groups that have markets and are disconnected
         - Cleans up groups that have no markets
     */
-    private async reconnectAndCleanupGroups() {
+    protected async reconnectAndCleanupGroups(): Promise<void> {
         try {
             const reconnectIds = await this.groupRegistry.getGroupsToReconnectAndCleanup();
             for (const groupId of reconnectIds) {
@@ -159,26 +184,6 @@ export class UserWSSubscriptionManager {
         } catch (error) {
             const msg = `Error during user group reconnection and cleanup: ${error instanceof Error ? error.message : String(error)}`;
             await this.handlers.onError?.(new Error(msg));
-        }
-    }
-
-    private async createWebSocketClient(groupId: string, handlers: UserWebSocketHandlers) {
-        const group = this.groupRegistry.findGroupById(groupId);
-
-        /*
-            Should never happen, but just in case.
-        */
-        if (!group) {
-            await handlers.onError?.(new Error(`User group ${groupId} not found in registry`));
-            return;
-        }
-
-        const groupSocket = new UserGroupSocket(group, this.burstLimiter, handlers);
-        try {
-            await groupSocket.connect();
-        } catch (error) {
-            const errorMessage = `Error creating User WebSocket client for group ${groupId}: ${error instanceof Error ? error.message : String(error)}`;
-            await handlers.onError?.(new Error(errorMessage));
         }
     }
 }
