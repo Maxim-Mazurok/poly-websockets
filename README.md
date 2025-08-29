@@ -42,6 +42,14 @@ const manager = new WSSubscriptionManager({
   }
 });
 
+// Or create with custom options, including initialDump
+const managerWithOptions = new WSSubscriptionManager({
+  // ... handlers
+}, {
+  maxMarketsPerWS: 50,
+  initialDump: false // Don't receive initial order book state
+});
+
 // Subscribe to assets
 await manager.addSubscriptions(['asset-id-1', 'asset-id-2']);
 
@@ -138,9 +146,10 @@ new WSSubscriptionManager(handlers: WebSocketHandlers, options?: SubscriptionMan
 **Parameters:**
 - `handlers` - Event handlers for different WebSocket events
 - `options` - Optional configuration object:
-  - `maxMarketsPerWS?: number` - Maximum assets per WebSocket connection (default: 100)
+  - `maxMarketsPerWS?: number` - Maximum assets per WebSocket connection (default: unlimited, as Polymarket removed the 100 token limit)
   - `reconnectAndCleanupIntervalMs?: number` - Interval for reconnection attempts (default: 10s)
   - `burstLimiter?: Bottleneck` - Custom rate limiter instance. If none is provided, one will be created and used internally in the component.
+  - `initialDump?: boolean` - Whether to receive the initial order book state when subscribing to tokens (default: true)
 
 #### Methods
 
@@ -234,7 +243,7 @@ new UserWSSubscriptionManager(handlers: UserWebSocketHandlers, options: UserSubs
 - `handlers` - Event handlers for user events (orders, trades)
 - `options` - Configuration object:
   - `auth: ApiCredentials` - **Required** API credentials for authentication
-  - `maxMarketsPerWS?: number` - Maximum markets per WebSocket connection (default: 100)
+  - `maxMarketsPerWS?: number` - Maximum markets per WebSocket connection (default: unlimited, as Polymarket removed the 100 token limit)
   - `reconnectAndCleanupIntervalMs?: number` - Interval for reconnection attempts (default: 10s)
   - `burstLimiter?: Bottleneck` - Custom rate limiter instance
 
