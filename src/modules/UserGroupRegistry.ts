@@ -1,28 +1,10 @@
-import { Mutex } from 'async-mutex';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { UserWebSocketGroup, WebSocketStatus, ApiCredentials } from '../types/WebSocketSubscriptions';
+import { BaseGroupRegistry } from './BaseGroupRegistry';
 import { logger } from '../logger';
 
-/*
- * Global user group store and mutex
- */
-const userWsGroups: UserWebSocketGroup[] = [];
-const userWsGroupsMutex = new Mutex();
-
-export class UserGroupRegistry {
-
-    /** 
-     * Atomic mutate helper.
-     * 
-     * @param fn - The function to run atomically.
-     * @returns The result of the function.
-     */
-    public async mutate<T>(fn: (groups: UserWebSocketGroup[]) => T | Promise<T>): Promise<T> {
-        const release = await userWsGroupsMutex.acquire();
-        try { return await fn(userWsGroups); }
-        finally { release(); }
-    }
+export class UserGroupRegistry extends BaseGroupRegistry<UserWebSocketGroup> {
 
     /** 
      * Read-only copy of the registry.
@@ -30,7 +12,7 @@ export class UserGroupRegistry {
      * Only to be used in test suite.
      */
     public snapshot(): UserWebSocketGroup[] {
-        return userWsGroups.map(group => ({
+        return this.groups.map(group => ({
             ...group,
             marketIds: new Set(group.marketIds),
             auth: { ...group.auth }
@@ -43,7 +25,7 @@ export class UserGroupRegistry {
      * Returns the groupId if found, otherwise null.
      */
     public findGroupWithCapacity(newMarketLen: number, maxPerWS: number): string | null {
-        for (const group of userWsGroups) {
+        for (const group of this.groups) {
             // Skip subscribe-to-all groups and empty groups
             if (group.marketIds.size === 0 || group.subscribeToAll) continue;
             if (group.marketIds.size + newMarketLen <= maxPerWS) return group.groupId;
@@ -55,14 +37,14 @@ export class UserGroupRegistry {
      * Check if any group contains the market or if any group is configured to subscribe to all.
      */
     public hasMarket(marketId: string): boolean {
-        return userWsGroups.some(group => group.marketIds.has(marketId) || group.subscribeToAll);
+        return this.groups.some(group => group.marketIds.has(marketId) || group.subscribeToAll);
     }
 
     /**
      * Check if any group is configured to subscribe to all events.
      */
     public hasSubscribeToAll(): boolean {
-        return userWsGroups.some(group => group.subscribeToAll);
+        return this.groups.some(group => group.subscribeToAll);
     }
 
     /**
@@ -71,23 +53,7 @@ export class UserGroupRegistry {
      * Returns the group if found, otherwise undefined.
      */
     public findGroupById(groupId: string): UserWebSocketGroup | undefined {
-        return userWsGroups.find(g => g.groupId === groupId);
-    }
-
-    /**
-     * Atomically remove **all** groups from the registry and return them so the
-     * caller can perform any asynchronous cleanup (closing sockets, etc.)
-     * outside the lock. 
-     * 
-     * Returns the removed groups.
-     */
-    public async clearAllGroups(): Promise<UserWebSocketGroup[]> {
-        let removed: UserWebSocketGroup[] = [];
-        await this.mutate(groups => {
-            removed = [...groups];
-            groups.length = 0;
-        });
-        return removed;
+        return this.groups.find(g => g.groupId === groupId);
     }
 
     /**

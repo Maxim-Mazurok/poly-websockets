@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MarketWSSubscriptionManager, WebSocketHandlers } from '../src/MarketWSSubscriptionManager';
-import { GroupRegistry } from '../src/modules/GroupRegistry';
+import { MarketGroupRegistry } from '../src/modules/MarketGroupRegistry';
 import { OrderBookCache } from '../src/modules/OrderBookCache';
-import { GroupSocket } from '../src/modules/GroupSocket';
+import { MarketGroupSocket } from '../src/modules/MarketGroupSocket';
 import Bottleneck from 'bottleneck';
 import {
     BookEvent,
@@ -15,14 +15,14 @@ import {
 import { WebSocketGroup, WebSocketStatus } from '../src/types/WebSocketSubscriptions';
 
 // Mock all dependencies
-vi.mock('../src/modules/GroupRegistry');
+vi.mock('../src/modules/MarketGroupRegistry');
 vi.mock('../src/modules/OrderBookCache');
-vi.mock('../src/modules/GroupSocket');
+vi.mock('../src/modules/MarketGroupSocket');
 vi.mock('bottleneck');
 
-const MockedGroupRegistry = vi.mocked(GroupRegistry);
+const MockedMarketGroupRegistry = vi.mocked(MarketGroupRegistry);
 const MockedOrderBookCache = vi.mocked(OrderBookCache);
-const MockedGroupSocket = vi.mocked(GroupSocket);
+const MockedMarketGroupSocket = vi.mocked(MarketGroupSocket);
 const MockedBottleneck = vi.mocked(Bottleneck);
 
 describe('MarketWSSubscriptionManager', () => {
@@ -86,7 +86,7 @@ describe('MarketWSSubscriptionManager', () => {
             disconnectGroup: vi.fn()
         } as any;
 
-        MockedGroupRegistry.mockImplementation(() => mockGroupRegistry);
+        MockedMarketGroupRegistry.mockImplementation(() => mockGroupRegistry);
 
         // Setup OrderBookCache mock
         mockBookCache = {
@@ -108,7 +108,7 @@ describe('MarketWSSubscriptionManager', () => {
             connect: vi.fn().mockResolvedValue(undefined),
         } as any;
 
-        MockedGroupSocket.mockImplementation(() => mockGroupSocket);
+        MockedMarketGroupSocket.mockImplementation(() => mockGroupSocket);
 
         manager = new MarketWSSubscriptionManager(mockHandlers);
     });
@@ -119,7 +119,7 @@ describe('MarketWSSubscriptionManager', () => {
 
     describe('constructor', () => {
         it('should initialize with correct dependencies', () => {
-            expect(MockedGroupRegistry).toHaveBeenCalledTimes(1);
+            expect(MockedMarketGroupRegistry).toHaveBeenCalledTimes(1);
             expect(MockedOrderBookCache).toHaveBeenCalledTimes(1);
             expect(MockedBottleneck).toHaveBeenCalledWith({
                 reservoir: 5,
@@ -154,7 +154,7 @@ describe('MarketWSSubscriptionManager', () => {
             await manager.addSubscriptions(assetIds);
 
             expect(mockGroupRegistry.addAssets).toHaveBeenCalledWith(assetIds, Number.MAX_SAFE_INTEGER);
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 mockBottleneck,
                 mockBookCache,
@@ -175,7 +175,7 @@ describe('MarketWSSubscriptionManager', () => {
 
             await manager.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledTimes(2);
+            expect(MockedMarketGroupSocket).toHaveBeenCalledTimes(2);
             expect(mockGroupSocket.connect).toHaveBeenCalledTimes(2);
         });
 
@@ -385,7 +385,7 @@ describe('MarketWSSubscriptionManager', () => {
                 expect(mockGroupRegistry.getGroupsToReconnectAndCleanup).toHaveBeenCalled();
             });
 
-            expect(MockedGroupSocket).toHaveBeenCalledTimes(2);
+            expect(MockedMarketGroupSocket).toHaveBeenCalledTimes(2);
             expect(mockGroupSocket.connect).toHaveBeenCalledTimes(2);
         });
 
@@ -512,7 +512,7 @@ describe('MarketWSSubscriptionManager', () => {
 
             await managerWithDefaults.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -531,7 +531,7 @@ describe('MarketWSSubscriptionManager', () => {
 
             await managerWithInitialDump.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -550,7 +550,7 @@ describe('MarketWSSubscriptionManager', () => {
 
             await managerWithoutInitialDump.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),
@@ -569,7 +569,7 @@ describe('MarketWSSubscriptionManager', () => {
 
             await managerWithUndefined.addSubscriptions(assetIds);
 
-            expect(MockedGroupSocket).toHaveBeenCalledWith(
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
                 expect.any(Object),
                 expect.any(Object),
                 expect.any(Object),

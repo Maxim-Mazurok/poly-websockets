@@ -11,9 +11,9 @@ import {
 } from './types/PolymarketWebSocket';
 import { SubscriptionManagerOptions, WebSocketGroup } from './types/WebSocketSubscriptions';
 
-import { GroupRegistry } from './modules/GroupRegistry';
+import { MarketGroupRegistry } from './modules/MarketGroupRegistry';
 import { OrderBookCache } from './modules/OrderBookCache';
-import { GroupSocket } from './modules/GroupSocket';
+import { MarketGroupSocket } from './modules/MarketGroupSocket';
 import { BaseSubscriptionManager } from './modules/BaseSubscriptionManager';
 
 import { logger } from './logger';
@@ -21,8 +21,8 @@ import { logger } from './logger';
 class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     WebSocketHandlers,
     WebSocketGroup,
-    GroupRegistry,
-    GroupSocket,
+    MarketGroupRegistry,
+    MarketGroupSocket,
     SubscriptionManagerOptions,
     PolymarketWSEvent | PolymarketPriceUpdateEvent
 > {
@@ -34,8 +34,8 @@ class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     }
 
     // Implementation of abstract methods from BaseSubscriptionManager
-    protected createGroupRegistry(): GroupRegistry {
-        return new GroupRegistry();
+    protected createGroupRegistry(): MarketGroupRegistry {
+        return new MarketGroupRegistry();
     }
 
     protected setupHandlers(userHandlers: WebSocketHandlers): WebSocketHandlers {
@@ -82,11 +82,11 @@ class MarketWSSubscriptionManager extends BaseSubscriptionManager<
         return this.groupRegistry.findGroupById(groupId);
     }
 
-    protected createGroupSocket(group: WebSocketGroup, limiter: Bottleneck, handlers: WebSocketHandlers): GroupSocket {
-        return new GroupSocket(group, limiter, this.bookCache, handlers);
+    protected createGroupSocket(group: WebSocketGroup, limiter: Bottleneck, handlers: WebSocketHandlers): MarketGroupSocket {
+        return new MarketGroupSocket(group, limiter, this.bookCache, handlers);
     }
 
-    protected async connectGroupSocket(groupSocket: GroupSocket): Promise<void> {
+    protected async connectGroupSocket(groupSocket: MarketGroupSocket): Promise<void> {
         await groupSocket.connect();
     }
 
