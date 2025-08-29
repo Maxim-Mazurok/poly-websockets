@@ -18,7 +18,7 @@ import { BaseSubscriptionManager } from './modules/BaseSubscriptionManager';
 
 import { logger } from './logger';
 
-class WSSubscriptionManager extends BaseSubscriptionManager<
+class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     WebSocketHandlers,
     WebSocketGroup,
     GroupRegistry,
@@ -199,4 +199,4 @@ class WSSubscriptionManager extends BaseSubscriptionManager<
     }
 }
 
-export { WSSubscriptionManager, WebSocketHandlers };
+export { MarketWSSubscriptionManager, WebSocketHandlers };
