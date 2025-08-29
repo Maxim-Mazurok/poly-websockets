@@ -32,6 +32,45 @@ export class MarketGroupSocket extends BaseGroupSocket<WebSocketGroup, WebSocket
         super(group, limiter, handlers);
     }
 
+    /**
+     * Establish the websocket connection using the provided Bottleneck limiter.
+     * 
+     */
+    public async connect(): Promise<void> {
+        if (this.group.assetIds.size === 0) {
+            this.group.status = WebSocketStatus.CLEANUP;
+            return;
+        }
+
+        try {
+            logger.info({
+                message: 'Connecting to CLOB WebSocket',
+                groupId: this.group.groupId,
+                assetIdsLength: this.group.assetIds.size,
+            });
+            this.group.wsClient = await this.limiter.schedule({ priority: 0 }, async () => { 
+                const ws = new WebSocket(CLOB_WSS_URL);
+                /*
+                    This handler will be replaced by the handlers in setupEventHandlers
+                */
+                ws.on('error', (err) => {
+                    logger.warn({
+                        message: 'Error connecting to CLOB WebSocket',
+                        error: err,
+                        groupId: this.group.groupId,
+                        assetIdsLength: this.group.assetIds.size,
+                    });
+                });
+                return ws;
+            });
+        } catch (err) {
+            this.group.status = WebSocketStatus.DEAD;
+            throw err; // caller responsible for error handler
+        }
+
+        this.setupEventHandlers();
+    }
+
     protected getWebSocketUrl(): string {
         return CLOB_WSS_URL;
     }

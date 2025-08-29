@@ -1,3 +1,4 @@
+import ms from 'ms';
 import _ from 'lodash';
 import Bottleneck from 'bottleneck';
 import {
@@ -18,6 +19,15 @@ import { BaseSubscriptionManager } from './modules/BaseSubscriptionManager';
 
 import { logger } from './logger';
 
+// Keeping a burst limit under 10/s to avoid rate limiting
+// See https://docs.polymarket.com/quickstart/introduction/rate-limits#api-rate-limits
+const BURST_LIMIT_PER_SECOND = 5;
+
+const DEFAULT_RECONNECT_AND_CLEANUP_INTERVAL_MS = ms('10s');
+// Polymarket removed the 100 token subscription limit on May 28, 2025
+// See: https://docs.polymarket.com/changelog/changelog
+const DEFAULT_MAX_MARKETS_PER_WS = Number.MAX_SAFE_INTEGER;
+
 class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     WebSocketHandlers,
     WebSocketGroup,
@@ -27,10 +37,12 @@ class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     PolymarketWSEvent | PolymarketPriceUpdateEvent
 > {
     private bookCache: OrderBookCache;
+    private initialDump: boolean;
 
     constructor(userHandlers: WebSocketHandlers, options?: SubscriptionManagerOptions) {
         super(userHandlers, options || {});
         this.bookCache = new OrderBookCache();
+        this.initialDump = options?.initialDump ?? true;
     }
 
     // Implementation of abstract methods from BaseSubscriptionManager
@@ -83,7 +95,7 @@ class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     }
 
     protected createGroupSocket(group: WebSocketGroup, limiter: Bottleneck, handlers: WebSocketHandlers): MarketGroupSocket {
-        return new MarketGroupSocket(group, limiter, this.bookCache, handlers);
+        return new MarketGroupSocket(group, limiter, this.bookCache, handlers, this.initialDump);
     }
 
     protected async connectGroupSocket(groupSocket: MarketGroupSocket): Promise<void> {

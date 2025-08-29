@@ -503,7 +503,7 @@ describe('MarketWSSubscriptionManager', () => {
 
     describe('initialDump option', () => {
         it('should default to true when no options provided', async () => {
-            const managerWithDefaults = new MarketWSSubscriptionManager(mockHandlers);
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -522,7 +522,7 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=true when explicitly set', async () => {
-            const managerWithInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: true });
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -541,7 +541,7 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=false when explicitly set', async () => {
-            const managerWithoutInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: false });
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -560,7 +560,7 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should handle undefined initialDump option correctly', async () => {
-            const managerWithUndefined = new MarketWSSubscriptionManager(mockHandlers, { initialDump: undefined });
+            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 

@@ -1,3 +1,4 @@
+import ms from 'ms';
 import _ from 'lodash';
 import Bottleneck from 'bottleneck';
 import {
@@ -13,6 +14,15 @@ import { UserGroupSocket } from './modules/UserGroupSocket';
 import { BaseSubscriptionManager } from './modules/BaseSubscriptionManager';
 
 import { logger } from './logger';
+
+// Keeping a burst limit under 10/s to avoid rate limiting
+// See https://docs.polymarket.com/quickstart/introduction/rate-limits#api-rate-limits
+const BURST_LIMIT_PER_SECOND = 5;
+
+const DEFAULT_RECONNECT_AND_CLEANUP_INTERVAL_MS = ms('10s');
+// Polymarket removed the 100 token subscription limit on May 28, 2025
+// See: https://docs.polymarket.com/changelog/changelog
+const DEFAULT_MAX_MARKETS_PER_WS = Number.MAX_SAFE_INTEGER;
 
 export class UserWSSubscriptionManager extends BaseSubscriptionManager<
     UserWebSocketHandlers,
