@@ -79,15 +79,27 @@ export class UserGroupSocket extends BaseGroupSocket<UserWebSocketGroup, UserWeb
             return;
         }
 
-        this.setGroupStatus(WebSocketStatus.ALIVE);
-
         const wsClient = this.getWebSocketClient();
-        if (wsClient) {
-            wsClient.send(JSON.stringify(this.createSubscriptionMessage()));
+        if (!wsClient) {
+            this.setGroupStatus(WebSocketStatus.DEAD);
+            return;
         }
-        
-        await this.handlers.onWSOpen?.(this.group.groupId, Array.from(this.group.marketIds));
 
+        try {
+            wsClient.send(JSON.stringify(this.createSubscriptionMessage()));
+        } catch (err) {
+            logger.warn({
+                message: 'Failed to send subscription message on WebSocket open',
+                error: err,
+                groupId: this.group.groupId,
+                marketIdsLength: this.group.marketIds.size,
+            });
+            this.setGroupStatus(WebSocketStatus.DEAD);
+            return;
+        }
+
+        this.setGroupStatus(WebSocketStatus.ALIVE);
+        await this.handlers.onWSOpen?.(this.group.groupId, Array.from(this.group.marketIds));
         this.startPingInterval();
     }
 

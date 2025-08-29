@@ -502,8 +502,19 @@ describe('MarketWSSubscriptionManager', () => {
     });
 
     describe('initialDump option', () => {
+        let managerWithDefaults: MarketWSSubscriptionManager;
+        let managerWithInitialDump: MarketWSSubscriptionManager;
+        let managerWithoutInitialDump: MarketWSSubscriptionManager;
+        let managerWithUndefined: MarketWSSubscriptionManager;
+
+        beforeEach(() => {
+            managerWithDefaults = new MarketWSSubscriptionManager(mockHandlers);
+            managerWithInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: true });
+            managerWithoutInitialDump = new MarketWSSubscriptionManager(mockHandlers, { initialDump: false });
+            managerWithUndefined = new MarketWSSubscriptionManager(mockHandlers, { initialDump: undefined });
+        });
+
         it('should default to true when no options provided', async () => {
-            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -522,7 +533,6 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=true when explicitly set', async () => {
-            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -541,7 +551,6 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should pass initialDump=false when explicitly set', async () => {
-            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 
@@ -560,7 +569,6 @@ describe('MarketWSSubscriptionManager', () => {
         });
 
         it('should handle undefined initialDump option correctly', async () => {
-            expect(MockedMarketGroupSocket).toHaveBeenCalledWith(
             const assetIds = ['asset1', 'asset2'];
             const groupIds = ['group1'];
 

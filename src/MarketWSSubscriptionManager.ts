@@ -131,7 +131,7 @@ class MarketWSSubscriptionManager extends BaseSubscriptionManager<
     }
 
     protected getMaxMarketsPerWS(options: SubscriptionManagerOptions): number | undefined {
-        return options?.maxMarketsPerWS;
+        return options?.maxMarketsPerWS ?? DEFAULT_MAX_MARKETS_PER_WS;
     }
 
     /*
