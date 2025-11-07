@@ -69,8 +69,10 @@ describe('WebSocket Error Handling on Open', () => {
             expect(mockWS.on).toHaveBeenCalledWith('open', expect.any(Function));
 
             // Get the handleOpen function that was registered
-            const openHandler = mockWS.on.mock.calls.find(call => call[0] === 'open')?.[1];
+            const openHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'open')?.[1];
             expect(openHandler).toBeDefined();
+
+            mockWS.readyState = (WebSocket as any).OPEN ?? 1;
 
             // Simulate the 'open' event
             await openHandler();
@@ -105,8 +107,10 @@ describe('WebSocket Error Handling on Open', () => {
             await groupSocket.connect();
 
             // Get the handleOpen function that was registered
-            const openHandler = mockWS.on.mock.calls.find(call => call[0] === 'open')?.[1];
+            const openHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'open')?.[1];
             expect(openHandler).toBeDefined();
+
+            mockWS.readyState = (WebSocket as any).OPEN ?? 1;
 
             // Simulate the 'open' event
             await openHandler();
@@ -143,7 +147,7 @@ describe('WebSocket Error Handling on Open', () => {
 
             await groupSocket.connect();
 
-            const messageHandler = mockWS.on.mock.calls.find(call => call[0] === 'message')?.[1];
+            const messageHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'message')?.[1];
             expect(messageHandler).toBeDefined();
 
             await messageHandler(Buffer.from('PONG'));
@@ -187,7 +191,7 @@ describe('WebSocket Error Handling on Open', () => {
             expect(mockWS.on).toHaveBeenCalledWith('open', expect.any(Function));
 
             // Get the handleOpen function that was registered
-            const openHandler = mockWS.on.mock.calls.find(call => call[0] === 'open')?.[1];
+            const openHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'open')?.[1];
             expect(openHandler).toBeDefined();
 
             // Simulate the 'open' event
@@ -229,7 +233,7 @@ describe('WebSocket Error Handling on Open', () => {
             await userGroupSocket.connect();
 
             // Get the handleOpen function that was registered
-            const openHandler = mockWS.on.mock.calls.find(call => call[0] === 'open')?.[1];
+            const openHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'open')?.[1];
             expect(openHandler).toBeDefined();
 
             // Simulate the 'open' event
@@ -281,7 +285,7 @@ describe('WebSocket Error Handling on Open', () => {
 
             await userGroupSocket.connect();
 
-            const messageHandler = mockWS.on.mock.calls.find(call => call[0] === 'message')?.[1];
+            const messageHandler = mockWS.on.mock.calls.find((call: [string, any]) => call[0] === 'message')?.[1];
             expect(messageHandler).toBeDefined();
 
             await messageHandler(Buffer.from('PONG'));
