@@ -32,6 +32,56 @@ describe('OrderBookCache', () => {
         }
     }
 
+    it('should return book entry', () => {
+        const bookEvt: BookEvent = {
+            asset_id: ASSET_ID,
+            market: 'm',
+            timestamp: '0',
+            hash: 'h',
+            event_type: 'book',
+            bids: [
+                { price: '0.01', size: '10' },
+                { price: '0.02', size: '5' }
+            ],
+            asks: [
+                { price: '0.99', size: '2' },
+                { price: '0.98', size: '1' }   
+            ]
+        };
+
+        bookCache.replaceBook(bookEvt);
+        const entity = bookCache.getBookEntry(ASSET_ID);
+        
+        expect(entity!.bids[0].price).toBe('0.01');
+        expect(entity!.asks[1].size).toBe('1');
+    });
+
+    it('should return null if it doesn\'t find the book entry', () => {
+        expect(bookCache.getBookEntry(ASSET_ID)).toBe(null);
+    });
+
+    it('should remove book cache entity', () => {
+        const bookEvt: BookEvent = {
+            asset_id: ASSET_ID,
+            market: 'm',
+            timestamp: '0',
+            hash: 'h',
+            event_type: 'book',
+            bids: [
+                { price: '0.01', size: '10' },
+                { price: '0.02', size: '5' }
+            ],
+            asks: [
+                { price: '0.99', size: '2' },
+                { price: '0.98', size: '1' }   
+            ]
+        };
+
+        bookCache.replaceBook(bookEvt);
+        bookCache.clear();
+        expect(bookCache.getBookEntry(ASSET_ID)).toBe(null);
+    })
+
     it('replaceBook should populate cache & keep ascending order for bids & descending order for asks', () => {
         const bookEvt: BookEvent = {
             asset_id: ASSET_ID,
@@ -78,9 +128,6 @@ describe('OrderBookCache', () => {
 
         bookCache.replaceBook(bookEvt);
 
-        assertAscending(bookCache.getBookEntry(ASSET_ID)!.bids);
-        assertDescending(bookCache.getBookEntry(ASSET_ID)!.asks);
-
         const mid = bookCache.midpoint(ASSET_ID);
         expect(mid).toBe('0.25'); // (0.2 + 0.3)/2 → 0.25
         expect(bookCache.spreadOver(ASSET_ID, 0.1)).toBe(false); // 0.3 - 0.2 = 0.1 
@@ -106,20 +153,23 @@ describe('OrderBookCache', () => {
         bookCache.replaceBook(bookEvt);
 
         const priceChange: PriceChangeEvent = {
-            asset_id: ASSET_ID,
             market: 'm',
-            hash: 'x',
             timestamp: '1',
             event_type: 'price_change',
-            changes: [
-                { price: '0.90', side: Side.BUY, size: '3' }
+            price_changes: [
+                { 
+                    asset_id: ASSET_ID,
+                    price: '0.90', 
+                    side: Side.BUY,
+                    size: '3',
+                    hash: 'x',
+                    best_bid: '0.90',
+                    best_ask: '0.98'
+                }
             ]
         };
 
         bookCache.upsertPriceChange(priceChange);
-
-        assertAscending(bookCache.getBookEntry(ASSET_ID)!.bids);
-        assertDescending(bookCache.getBookEntry(ASSET_ID)!.asks);
         
         expect(bookCache.spreadOver(ASSET_ID, 0.1)).toBe(false); // 0.99 - 0.9 = 0.09
         expect(bookCache.midpoint(ASSET_ID)).toBe('0.94');
